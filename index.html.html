@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asset Control - Linha Amarela</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans">
+
+    <div class="max-w-4xl mx-auto p-4 lg:p-8">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+            <div>
+                <h1 class="text-3xl font-black text-yellow-500 tracking-tight italic uppercase">TESTE - FERNANDO <span class="text-white"l</span></h1>
+                <p class="text-slate-400">Gestão de Medição e Disponibilidade Física</p>
+            </div>
+            <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 text-center">
+                <span class="text-xs uppercase text-slate-500 block mb-1">Total Medido no Mês</span>
+                <span id="total_geral" class="text-2xl font-bold text-green-400">R$ 0,00</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-1 bg-slate-800 p-6 rounded-2xl shadow-2xl border border-slate-700 h-fit">
+                <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+                    <i class="fas fa-plus-circle text-yellow-500"></i> Nova Medição
+                </h2>
+                
+                <div class="space-y-4 text-slate-300">
+                    <div>
+                        <label class="text-xs font-bold uppercase">Equipamento/Prefixo</label>
+                        <input type="text" id="maquina" class="w-full bg-slate-700 border-none rounded-lg p-3 focus:ring-2 focus:ring-yellow-500 outline-none" placeholder="EX: RETRO-05">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-xs font-bold uppercase">H. Inicial</label>
+                            <input type="number" id="h_inicial" class="w-full bg-slate-700 border-none rounded-lg p-3 outline-none" placeholder="0">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold uppercase">H. Final</label>
+                            <input type="number" id="h_final" class="w-full bg-slate-700 border-none rounded-lg p-3 outline-none" placeholder="0">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold uppercase text-red-400">Paradas/Quebras (Horas)</label>
+                        <input type="number" id="h_parada" class="w-full bg-slate-700 border-none rounded-lg p-3 outline-none" placeholder="Desconto">
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold uppercase">R$ Valor/Hora</label>
+                        <input type="number" id="valor_hora" class="w-full bg-slate-700 border-none rounded-lg p-3 outline-none" placeholder="180.00">
+                    </div>
+
+                    <button onclick="adicionarMedicao()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-black py-4 rounded-xl shadow-lg transition-all transform hover:scale-[1.02]">
+                        LANÇAR MEDIÇÃO
+                    </button>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 space-y-6">
+                <div class="bg-slate-800 p-6 rounded-2xl shadow-2xl border border-slate-700 overflow-x-auto">
+                    <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+                        <i class="fas fa-list-ul text-yellow-500"></i> Histórico de Ativos
+                    </h2>
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-slate-500 text-xs uppercase border-b border-slate-700">
+                                <th class="pb-3">Equipamento</th>
+                                <th class="pb-3">Bruto</th>
+                                <th class="pb-3 text-red-400">Paradas</th>
+                                <th class="pb-3">DF (%)</th>
+                                <th class="pb-3 text-right">Total R$</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista_medicoes" class="text-sm">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let medicoes = [];
+        let totalAcumulado = 0;
+
+        function adicionarMedicao() {
+            const maquina = document.getElementById('maquina').value.toUpperCase();
+            const inicial = parseFloat(document.getElementById('h_inicial').value);
+            const final = parseFloat(document.getElementById('h_final').value);
+            const parada = parseFloat(document.getElementById('h_parada').value) || 0;
+            const valorHora = parseFloat(document.getElementById('valor_hora').value);
+
+            if (!maquina || isNaN(inicial) || isNaN(final) || isNaN(valorHora)) {
+                alert("Preencha todos os dados corretamente.");
+                return;
+            }
+
+            const horasBrutas = final - inicial;
+            const horasLiquidas = horasBrutas - parada;
+            const valorTotal = horasLiquidas * valorHora;
+            
+            // Cálculo de Disponibilidade Física (DF)
+            // Consideramos o período de medição como as horas brutas totais
+            const df = (horasLiquidas / horasBrutas) * 100;
+
+            const novaMedicao = {
+                maquina,
+                horasBrutas,
+                parada,
+                df: df.toFixed(1),
+                valorTotal
+            };
+
+            medicoes.push(novaMedicao);
+            totalAcumulado += valorTotal;
+            
+            atualizarInterface();
+            limparCampos();
+        }
+
+        function atualizarInterface() {
+            const tbody = document.getElementById('lista_medicoes');
+            tbody.innerHTML = '';
+
+            medicoes.forEach(m => {
+                const corDf = m.df > 85 ? 'text-green-400' : 'text-yellow-400';
+                tbody.innerHTML += `
+                    <tr class="border-b border-slate-700/50 hover:bg-slate-700/30 transition">
+                        <td class="py-4 font-bold text-white">${m.maquina}</td>
+                        <td class="py-4">${m.horasBrutas}h</td>
+                        <td class="py-4 text-red-400">-${m.parada}h</td>
+                        <td class="py-4 font-mono ${corDf}">${m.df}%</td>
+                        <td class="py-4 text-right font-bold text-green-400">R$ ${m.valorTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('total_geral').innerText = `R$ ${totalAcumulado.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+        }
+
+        function limparCampos() {
+            document.getElementById('maquina').value = '';
+            document.getElementById('h_inicial').value = '';
+            document.getElementById('h_final').value = '';
+            document.getElementById('h_parada').value = '';
+            document.getElementById('valor_hora').value = '';
+        }
+    </script>
+</body>
+</html>
